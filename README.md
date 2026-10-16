@@ -342,6 +342,11 @@ bash ./scripts/check-ios-dist.sh
 bash ./scripts/release-ios.sh
 ```
 
+The default scheme is `Runner`. For an existing shared Xcode flavor scheme with
+matching build configurations, pass `--scheme <name>`; the script forwards it to
+Flutter as `--flavor=<name>` for the build and uses the same scheme for preflight.
+The build uses `ios/Runner.xcworkspace`; `--workspace` overrides are rejected.
+
 Optional upload with `asc` CLI:
 
 ```bash

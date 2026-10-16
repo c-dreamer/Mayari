@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 SCHEME="Runner"
-WORKSPACE="$PROJECT_DIR/ios/Runner.xcworkspace"
 EXPORT_OPTIONS="$PROJECT_DIR/ios/ExportOptions.plist"
 DIST_MODE="testflight"
 UPLOAD=false
@@ -17,13 +16,15 @@ Usage:
   ./scripts/release-ios.sh [options]
 
 Options:
-  --scheme <name>            Xcode scheme (default: Runner)
-  --workspace <path>         Xcode workspace path
+  --scheme <name>            Xcode scheme; nondefault uses Flutter --flavor
+                            (default: Runner, no flavor)
   --export-options <path>    ExportOptions.plist path
   --dist <testflight|appstore>
   --upload                   Upload with asc CLI (requires ASC_APP_ID)
   --no-codesign              Build unsigned archive (local validation)
   -h, --help                 Show help
+
+Flutter uses ios/Runner.xcworkspace; custom workspaces are not supported.
 
 Environment:
   ASC_APP_ID                 App Store Connect app id (required with --upload)
@@ -31,22 +32,32 @@ Environment:
 EOF
 }
 
+require_value() {
+  if [[ $# -lt 2 || -z "$2" || "$2" == -* ]]; then
+    echo "$1 requires a value" >&2
+    exit 2
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --scheme)
-      SCHEME="${2:-}"
+      require_value "$@"
+      SCHEME="$2"
       shift 2
       ;;
     --workspace)
-      WORKSPACE="${2:-}"
-      shift 2
+      echo "--workspace is not supported: Flutter uses ios/Runner.xcworkspace." >&2
+      exit 2
       ;;
     --export-options)
-      EXPORT_OPTIONS="${2:-}"
+      require_value "$@"
+      EXPORT_OPTIONS="$2"
       shift 2
       ;;
     --dist)
-      DIST_MODE="${2:-}"
+      require_value "$@"
+      DIST_MODE="$2"
       shift 2
       ;;
     --upload)
@@ -92,7 +103,7 @@ BUILD_NUMBER="$(grep 'version:' "$PROJECT_DIR/pubspec.yaml" | head -1 | cut -d'+
 
 echo "== Building IPA =="
 echo "Version: $VERSION_NAME+$BUILD_NUMBER"
-echo "Workspace: $WORKSPACE"
+echo "Workspace: $PROJECT_DIR/ios/Runner.xcworkspace"
 echo "Scheme: $SCHEME"
 echo "Export options: $EXPORT_OPTIONS"
 
@@ -104,6 +115,9 @@ echo "Export options: $EXPORT_OPTIONS"
     --build-name="$VERSION_NAME" \
     --build-number="$BUILD_NUMBER" \
     --export-options-plist="$EXPORT_OPTIONS")
+  if [[ "$SCHEME" != "Runner" ]]; then
+    BUILD_CMD+=(--flavor="$SCHEME")
+  fi
   if [[ "$NO_CODESIGN" == "true" ]]; then
     BUILD_CMD+=(--no-codesign)
   fi
